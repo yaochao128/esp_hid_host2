@@ -27,6 +27,18 @@ See [Development Boards](https://www.espressif.com/en/products/devkits) for more
 
 ### Configure the Project
 
+Enable TinyUSB and the USB HID device class with `idf.py menuconfig`:
+
+```
+Component config  --->
+    TinyUSB  --->
+        [*] Enable TinyUSB stack
+        [*] Enable HID Device class support
+```
+
+When running, pressing F13, F14 or F15 on a connected Bluetooth keyboard will
+send the same key codes over USB.
+
 ### Build and Flash
 
 Build the project and flash it to the board, then run monitor tool to view serial output.

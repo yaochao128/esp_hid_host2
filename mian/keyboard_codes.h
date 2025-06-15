@@ -1,0 +1,8 @@
+#ifndef KEYBOARD_CODES_H
+#define KEYBOARD_CODES_H
+
+#define HID_KEY_F13 0x68
+#define HID_KEY_F14 0x69
+#define HID_KEY_F15 0x6A
+
+#endif // KEYBOARD_CODES_H
