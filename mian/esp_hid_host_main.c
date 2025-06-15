@@ -48,12 +48,19 @@
 
 #include "esp_hidh.h"
 #include "esp_hid_gap.h"
+#include "tinyusb.h"
+#include "class/hid/hid_device.h"
+#include "keyboard_codes.h"
 
 static const char *TAG = "ESP_HIDH_DEMO";
 
 #if CONFIG_BT_HID_HOST_ENABLED
 static const char * remote_device_name = CONFIG_EXAMPLE_PEER_DEVICE_NAME;
 #endif // CONFIG_BT_HID_HOST_ENABLED
+
+static bool f13_state = false;
+static bool f14_state = false;
+static bool f15_state = false;
 
 #if !CONFIG_BT_NIMBLE_ENABLED
 static char *bda2str(uint8_t *bda, char *str, size_t size)
@@ -97,8 +104,37 @@ void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *
     case ESP_HIDH_INPUT_EVENT: {
         const uint8_t *bda = esp_hidh_dev_bda_get(param->input.dev);
         if (bda) {
-            ESP_LOGI(TAG, ESP_BD_ADDR_STR " INPUT: %8s, MAP: %2u, ID: %3u, Len: %d, Data:", ESP_BD_ADDR_HEX(bda), esp_hid_usage_str(param->input.usage), param->input.map_index, param->input.report_id, param->input.length);
+            ESP_LOGI(TAG, ESP_BD_ADDR_STR " INPUT: %8s, MAP: %2u, ID: %3u, Len: %d, Data:",
+                     ESP_BD_ADDR_HEX(bda), esp_hid_usage_str(param->input.usage),
+                     param->input.map_index, param->input.report_id, param->input.length);
             ESP_LOG_BUFFER_HEX(TAG, param->input.data, param->input.length);
+        }
+        if (param->input.length >= 8) {
+            const uint8_t *rep = param->input.data;
+            bool f13 = false, f14 = false, f15 = false;
+            for (int i = 2; i < 8 && i < param->input.length; i++) {
+                if (rep[i] == HID_KEY_F13) f13 = true;
+                if (rep[i] == HID_KEY_F14) f14 = true;
+                if (rep[i] == HID_KEY_F15) f15 = true;
+            }
+            uint8_t usb_report[8] = {0};
+            if (f13 != f13_state) {
+                usb_report[2] = f13 ? HID_KEY_F13 : 0;
+                tud_hid_report(0, usb_report, sizeof(usb_report));
+                f13_state = f13;
+            }
+            if (f14 != f14_state) {
+                memset(usb_report, 0, sizeof(usb_report));
+                usb_report[2] = f14 ? HID_KEY_F14 : 0;
+                tud_hid_report(0, usb_report, sizeof(usb_report));
+                f14_state = f14;
+            }
+            if (f15 != f15_state) {
+                memset(usb_report, 0, sizeof(usb_report));
+                usb_report[2] = f15 ? HID_KEY_F15 : 0;
+                tud_hid_report(0, usb_report, sizeof(usb_report));
+                f15_state = f15;
+            }
         }
         break;
     }
@@ -214,6 +250,9 @@ void app_main(void)
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK( ret );
+
+    tinyusb_config_t tusb_cfg = {0};
+    ESP_ERROR_CHECK(tinyusb_driver_install(&tusb_cfg));
     ESP_LOGI(TAG, "setting hid gap, mode:%d", HID_HOST_MODE);
     ESP_ERROR_CHECK( esp_hid_gap_init(HID_HOST_MODE) );
 #if CONFIG_BT_BLE_ENABLED
